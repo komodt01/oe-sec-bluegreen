@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # Python (pip / requirements.txt, pip-compile, pyproject, etc.)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Node.js (package.json / lockfiles)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions (keeps workflow actions current)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      gha-minor-patch:
+        update-types: ["minor", "patch"]
