@@ -1,0 +1,12 @@
+version: 0.2
+phases:
+  install:
+    commands:
+      - pip install bandit
+  build:
+    commands:
+      - bandit -r app -ll || true
+      - zip -r artifact.zip app/
+artifacts:
+  files:
+    - artifact.zip
