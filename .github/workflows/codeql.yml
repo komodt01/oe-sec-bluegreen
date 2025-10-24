@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         # Add/remove languages as needed. 'javascript' also covers TypeScript.
-        language: [ "python", "javascript" ]
+        language: [ "python", "javascript", "go" ]
 
     steps:
       - name: Checkout
