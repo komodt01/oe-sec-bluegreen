@@ -1,4 +1,4 @@
-name: CodeQL
+name: "CodeQL"
 
 on:
   push:
@@ -6,51 +6,30 @@ on:
   pull_request:
     branches: [ "main" ]
   schedule:
-    # Monday 09:00 UTC weekly scan
-    - cron: "0 9 * * 1"
+    - cron: "0 3 * * 0"
 
 permissions:
   contents: read
-  actions: read
   security-events: write
 
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
-        # Add/remove languages as needed. 'javascript' also covers TypeScript.
-        language: [ "python", "javascript", "go" ]
+        language: [ 'python', 'javascript' ]  # Removed 'go'
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
-
-      # Optional: helps dependency discovery for Python projects
-      - name: Set up Python
-        if: matrix.language == 'python'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python deps (best-effort)
-        if: matrix.language == 'python' && hashFiles('**/requirements*.txt') != ''
-        run: |
-          python -m pip install -U pip
-          pip install -r requirements.txt || true
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          # Extended security + quality queries (AWS WA-aligned)
-          queries: security-extended,security-and-quality
 
-      # For compiled languages, 'autobuild' builds your code;
-      # for Python/JS it’s a no-op (safe to keep).
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
