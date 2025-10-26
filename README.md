@@ -1,21 +1,62 @@
-# OE + Security: Blue/Green (Reference)
+# 🛡️ Blue/Green CodeQL Security Automation
 
-**Purpose**: reference implementation of Blue/Green deployments aligned to the AWS Well-Architected *Operational Excellence* and *Security* pillars.
+This repository demonstrates **secure DevOps pipeline practices** using GitHub Actions, CodeQL static analysis, and blue/green deployment strategies. It integrates code scanning, continuous integration (CI), and branch protection to enforce strong security and compliance in cloud-oriented development environments.
 
-**Important**: This repo reflects AWS reference guidance; final choices MUST be driven by business objectives, risk, compliance, and cost—cloud/provider/tooling are selected *after* the objectives.
+---
 
-## Options we’ll demo
-- **CodeDeploy (EC2/ASG)** – simplest, clear Blue/Green semantics, strong rollback.
-- **Elastic Beanstalk** – managed Blue/Green via environment swap.
-- **(Later) ECS + ALB + CodeDeploy** – containerized Blue/Green.
+## 📘 Purpose
 
-## What’s here
-- `src/app/` – placeholder app.
-- `iac/cdk/bluegreen/` – CDK skeleton for CodeDeploy EC2/ASG Blue/Green.
-- `.github/workflows/` – CI to lint + synth; CD to come.
-- `DEPLOYMENT.md` – how to operate Blue/Green safely.
+The goal of this project is to:
+- Showcase automated **CodeQL vulnerability scanning** for JavaScript projects.
+- Enforce **branch protection rules** that require successful security checks.
+- Illustrate a **blue/green deployment approach** where validated code changes are promoted between branches or environments without downtime.
+- Demonstrate **CI workflow resiliency**—ensuring that documentation-only commits (e.g., README or `.md` updates) do **not trigger unnecessary CodeQL failures**.
 
-## Security/Governance
-- Policy-as-code hooks (pre-commit): ruff/black/bandit/detect-secrets.
-- Branch protection, PR reviews, Dependabot, secret scanning (see SECURITY.md).
+---
+
+## ⚙️ How It Works
+
+1. **CodeQL Analysis Workflow**
+   - Automatically triggered on:
+     - Pushes to the `main` branch
+     - Pull requests to `main`
+   - Ignores Markdown and documentation-only commits.
+   - Dynamically detects if JavaScript/TypeScript files exist; skips analysis gracefully if not.
+   - Reports findings to GitHub Security → Code Scanning Alerts.
+
+2. **Branch Protection**
+   - Enforces `ci` and `CodeQL` checks as required before merging.
+   - Prevents force pushes or direct merges to `main`.
+   - Enables reliable verification in multi-developer or blue/green environments.
+
+3. **CI Integration**
+   - Uses GitHub’s `lint-and-synth` and CodeQL checks.
+   - Ensures all PRs meet code quality and security standards before promotion.
+
+---
+
+## 🧩 Key Files
+
+| File | Description |
+|------|--------------|
+| `.github/workflows/codeql.yml` | CodeQL workflow that performs static analysis for JavaScript. |
+| `.github/workflows/ci.yml` | Linting and syntax validation pipeline (if applicable). |
+| `README.md` | This file, describing repository structure and purpose. |
+
+---
+
+## 🧪 Testing the Workflow
+
+Run a test scan locally or via a new PR:
+```bash
+# Create a new branch
+git checkout -b test-codeql
+
+# Make a small change
+echo "// test" >> app.js
+
+# Commit and push
+git add .
+git commit -m "test: trigger CodeQL analysis"
+git push origin test-codeql
 
