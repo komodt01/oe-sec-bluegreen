@@ -1,12 +1,14 @@
-name: "CodeQL"
+name: CodeQL
 
 on:
   push:
     branches: [ "main" ]
+    paths-ignore: [ "**/*.md", "docs/**" ]
   pull_request:
     branches: [ "main" ]
+    paths-ignore: [ "**/*.md", "docs/**" ]
   schedule:
-    - cron: "0 3 * * 0"
+    - cron: "0 3 * * 0"   # weekly Sunday 03:00 UTC
 
 permissions:
   contents: read
@@ -16,10 +18,11 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'python', 'javascript' ]  # Removed 'go'
+        language: [ "python", "javascript" ]
 
     steps:
       - name: Checkout repository
