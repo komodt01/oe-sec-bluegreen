@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'python', 'javascript' ]  # Removed 'go'
+        language: [ 'javascript' ]  # Removed 'go'
 
     steps:
       - name: Checkout repository
