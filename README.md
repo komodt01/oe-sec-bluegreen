@@ -1,21 +1,94 @@
-# OE + Security: Blue/Green (Reference)
+# GitHub Security Automation & Code Scanning Enforcement
 
-**Purpose**: reference implementation of Blue/Green deployments aligned to the AWS Well-Architected *Operational Excellence* and *Security* pillars.
+This repository demonstrates an end-to-end **security posture for GitHub** using native tooling:
+**Branch Protection**, **CodeQL (SAST)**, **linting & formatting**, and **pull-request enforcement** via
+**GitHub Actions**. The goal is to ensure only verified, scanned, and policy-compliant code reaches `main`.
 
-**Important**: This repo reflects AWS reference guidance; final choices MUST be driven by business objectives, risk, compliance, and cost—cloud/provider/tooling are selected *after* the objectives.
+---
 
-## Options we’ll demo
-- **CodeDeploy (EC2/ASG)** – simplest, clear Blue/Green semantics, strong rollback.
-- **Elastic Beanstalk** – managed Blue/Green via environment swap.
-- **(Later) ECS + ALB + CodeDeploy** – containerized Blue/Green.
+## Overview
 
-## What’s here
-- `src/app/` – placeholder app.
-- `iac/cdk/bluegreen/` – CDK skeleton for CodeDeploy EC2/ASG Blue/Green.
-- `.github/workflows/` – CI to lint + synth; CD to come.
-- `DEPLOYMENT.md` – how to operate Blue/Green safely.
+- Continuous CodeQL analysis for **Python** and **JavaScript**
+- Branch protection with enforced PRs, signed commits, and required checks
+- Linting/formatting/security gates (e.g., ruff, black, bandit) via CI
+- Weekly scheduled security scans (cron)
+- Clear audit trail for compliance
 
-## Security/Governance
-- Policy-as-code hooks (pre-commit): ruff/black/bandit/detect-secrets.
-- Branch protection, PR reviews, Dependabot, secret scanning (see SECURITY.md).
+---
+
+## Components
+
+| Component | Purpose |
+| --- | --- |
+| CodeQL (GitHub Advanced Security) | Static Application Security Testing (SAST) for Python and JavaScript. |
+| Branch Protection Rules | Enforce PRs to `main`, block force pushes/deletions, require signed commits, require passing checks. |
+| CI Workflows | Run lint/synth checks and CodeQL on PRs and pushes to `main`. |
+| Pre-commit Security | Opinionated checks: ruff/black/bandit to keep code safe and consistent. |
+
+---
+
+## Security Posture
+
+### Branch Protection (recommended)
+
+| Control | Setting (example) |
+| --- | --- |
+| Require pull request before merging | Enabled |
+| Require status checks to pass | `ci / lint-and-synth`, `Code scanning results / CodeQL` |
+| Require signed commits | Enabled |
+| Block force pushes | Enabled |
+| Restrict deletions | Enabled |
+
+### CodeQL Coverage
+
+| Language | Triggers |
+| --- | --- |
+| Python | Push to `main`, Pull Requests to `main`, Weekly cron scan |
+| JavaScript | Push to `main`, Pull Requests to `main`, Weekly cron scan |
+
+---
+
+## Workflow: `.github/workflows/codeql.yml`
+
+```yaml
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 3 * * 0" # weekly Sunday 03:00 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ "python", "javascript" ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
 
