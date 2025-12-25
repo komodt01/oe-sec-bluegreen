@@ -1,4 +1,4 @@
-name: "CodeQL"
+name: CodeQL
 
 on:
   push:
@@ -12,28 +12,55 @@ permissions:
   contents: read
   security-events: write
 
+# -------------------------------
+# Analyze JavaScript / TypeScript
+# -------------------------------
 jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
+  analyze_javascript:
+    name: Analyze (javascript)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'python', 'javascript' ]  # Removed 'go'
+    # Only run if this repo/PR actually has JS/TS files
+    if: ${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') != '' }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
+      - name: Initialize CodeQL (JS)
         uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
+          languages: javascript
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
-      - name: Perform CodeQL Analysis
+      - name: Perform CodeQL Analysis (JS)
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:javascript"
+
+# -----------------------
+# Analyze Python (only if present)
+# -----------------------
+  analyze_python:
+    name: Analyze (python)
+    runs-on: ubuntu-latest
+    # Only run if there are Python files in the repo/PR
+    if: ${{ hashFiles('**/*.py') != '' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL (Python)
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis (Python)
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
