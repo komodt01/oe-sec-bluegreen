@@ -1,4 +1,4 @@
-name: "CodeQL"
+name: CodeQL
 
 on:
   push:
@@ -13,27 +13,48 @@ permissions:
   security-events: write
 
 jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
+  codeql:
+    name: CodeQL (auto)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'python', 'javascript' ]  # Removed 'go'
+    timeout-minutes: 45
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
+      # Detect whether the repo (as checked out in this PR) has code we care about.
+      # If not, we'll skip the CodeQL steps but still let the job succeed so the required
+      # "Code scanning results / CodeQL" check can pass.
+      - name: Detect supported languages
+        id: detect
+        shell: bash
+        run: |
+          HAS_CODE="false"
+          # Add patterns you want CodeQL to care about:
+          if git ls-files \
+              '*.py' \
+              '*.js' '*.jsx' '*.ts' '*.tsx' \
+              '*.java' '*.kt' '*.go' '*.rb' '*.cpp' '*.c' '*.cs' '*.php' 2>/dev/null | grep -q .; then
+            HAS_CODE="true"
+          fi
+          echo "has_code=$HAS_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Note (skipping CodeQL because no supported code)
+        if: steps.detect.outputs.has_code == 'false'
+        run: echo "No supported source files found on this branch. Skipping CodeQL analyze."
+
+      - name: Initialize CodeQL (auto)
+        if: steps.detect.outputs.has_code == 'true'
         uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
+          languages: "auto"   # Let CodeQL discover the languages present
 
       - name: Autobuild
+        if: steps.detect.outputs.has_code == 'true'
         uses: github/codeql-action/autobuild@v3
 
-      - name: Perform CodeQL Analysis
+      - name: Analyze
+        if: steps.detect.outputs.has_code == 'true'
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:auto"
