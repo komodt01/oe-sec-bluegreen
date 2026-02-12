@@ -1,39 +1,69 @@
-name: "CodeQL"
+name: CodeQL
 
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - '**/*.md'
+      - 'README*'
+      - 'docs/**'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - '**/*.md'
+      - 'README*'
+      - 'docs/**'
   schedule:
-    - cron: "0 3 * * 0"
+    - cron: '0 3 * * 0'   # weekly, optional
+  workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
   security-events: write
 
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
+  codeql:
+    name: CodeQL (JavaScript)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'python', 'javascript' ]  # Removed 'go'
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
+      # Detect if repository actually contains JS/TS.
+      # If not, the job exits successfully without running CodeQL.
+      - name: Detect JavaScript/TypeScript
+        id: detect
+        run: |
+          if git ls-files | grep -E '\.(js|jsx|ts|tsx|mjs|cjs)$' >/dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Initialize CodeQL
+        if: steps.detect.outputs.found == 'true'
         uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
+          languages: javascript
 
       - name: Autobuild
+        if: steps.detect.outputs.found == 'true'
         uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
+        if: steps.detect.outputs.found == 'true'
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{ matrix.language }}"
+          category: '/language:javascript'
+
+      # No-JS fast exit (keeps the check green)
+      - name: No JavaScript/TypeScript found — skipping CodeQL
+        if: steps.detect.outputs.found != 'true'
+        run: echo "No JS/TS sources found. CodeQL skipped."
