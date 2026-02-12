@@ -1,10 +1,10 @@
-name: "CodeQL"
+name: CodeQL
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
   schedule:
     - cron: "0 3 * * 0"
 
@@ -19,21 +19,45 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'python', 'javascript' ]  # Removed 'go'
+        language: [javascript, python]
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect language presence
+        id: detect
+        shell: bash
+        run: |
+          js=$(git ls-files '**/*.js' '**/*.jsx' '**/*.ts' '**/*.tsx' | wc -l)
+          py=$(git ls-files '**/*.py' | wc -l)
+          echo "has_js=$js" >> $GITHUB_OUTPUT
+          echo "has_py=$py" >> $GITHUB_OUTPUT
+
       - name: Initialize CodeQL
+        if: |
+          (matrix.language == 'javascript' && steps.detect.outputs.has_js != '0') ||
+          (matrix.language == 'python' && steps.detect.outputs.has_py != '0')
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
+        if: |
+          (matrix.language == 'javascript' && steps.detect.outputs.has_js != '0') ||
+          (matrix.language == 'python' && steps.detect.outputs.has_py != '0')
         uses: github/codeql-action/autobuild@v3
 
-      - name: Perform CodeQL Analysis
+      - name: Analyze
+        if: |
+          (matrix.language == 'javascript' && steps.detect.outputs.has_js != '0') ||
+          (matrix.language == 'python' && steps.detect.outputs.has_py != '0')
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
+
+      - name: Skip when no files
+        if: |
+          (matrix.language == 'javascript' && steps.detect.outputs.has_js == '0') ||
+          (matrix.language == 'python' && steps.detect.outputs.has_py == '0')
+        run: echo "No source files for ${{ matrix.language }}; skipping CodeQL scan."
