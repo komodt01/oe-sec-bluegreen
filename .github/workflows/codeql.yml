@@ -19,21 +19,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'python', 'javascript' ]  # Removed 'go'
+        language: [ 'python', 'javascript' ]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Optional: log when we intentionally skip a language
+      - name: Note – no Python sources, skipping
+        if: ${{ matrix.language == 'python' && hashFiles('**/*.py') == '' }}
+        run: echo "No Python sources found in this ref; skipping Python CodeQL."
+
+      - name: Note – no JS/TS sources, skipping
+        if: ${{ matrix.language == 'javascript' && hashFiles('**/*.{js,jsx,ts,tsx}') == '' }}
+        run: echo "No JS/TS sources found in this ref; skipping JavaScript CodeQL."
+
       - name: Initialize CodeQL
+        if: ${{ (matrix.language != 'python' || hashFiles('**/*.py') != '') && (matrix.language != 'javascript' || hashFiles('**/*.{js,jsx,ts,tsx}') != '') }}
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
+        if: ${{ (matrix.language != 'python' || hashFiles('**/*.py') != '') && (matrix.language != 'javascript' || hashFiles('**/*.{js,jsx,ts,tsx}') != '') }}
         uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
+        if: ${{ (matrix.language != 'python' || hashFiles('**/*.py') != '') && (matrix.language != 'javascript' || hashFiles('**/*.{js,jsx,ts,tsx}') != '') }}
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
