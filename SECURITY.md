@@ -2,88 +2,59 @@
 
 ## Purpose
 
-This project applies security controls across the software delivery lifecycle rather than relying on a single scan or review step.
+This project demonstrates how security and operational controls can be incorporated into a blue/green deployment process.
 
-The implemented controls focus on developer-side checks, source-code analysis, dependency maintenance, build-time scanning, deployment validation, and protected promotion.
+The implemented controls focus on secrets detection, dependency maintenance, controlled changes to the repository, CodeDeploy lifecycle hooks, and deployment health validation.
 
-Some runtime and infrastructure controls are part of the production design rather than fully implemented components in this repository.
+The broader runtime security controls described here represent production design considerations rather than fully deployed components.
 
 ## Implemented Security Controls
 
-### Pre-Commit Controls
+### Secrets Detection
 
-The repository uses pre-commit hooks to provide feedback before code is committed.
+The repository uses `detect-secrets` as a pre-commit control to identify potential credentials or secrets before changes are committed.
 
-Configured controls include:
+This provides an early control intended to reduce the likelihood of sensitive information entering source control.
 
-- Bandit for Python security analysis
-- detect-secrets for potential credential or secret exposure
-- Ruff for linting and code-quality checks
-- Black for formatting
+For a production repository, I would also evaluate:
 
-These controls help identify issues early and reduce the likelihood that avoidable problems move further into the delivery pipeline.
+- GitHub secret scanning and push protection
+- Centralized secrets management
+- Short-lived credentials
+- Credential rotation
+- Incident procedures for exposed secrets
 
-## Source Code Security Analysis
+## Dependency and Workflow Maintenance
 
-GitHub CodeQL is configured for:
+Dependabot is configured to check GitHub Actions dependencies on a weekly schedule.
 
-- Python
-- JavaScript
+Minor and patch updates are grouped to reduce unnecessary update noise while maintaining visibility into workflow dependency changes.
 
-The workflow runs on:
-
-- Pull requests into `main`
-- Pushes to `main`
-- A weekly scheduled scan
-
-CodeQL results are surfaced through GitHub code scanning and pull-request checks.
-
-This provides an additional SAST layer beyond the local Bandit checks.
-
-## Dependency Maintenance
-
-Dependabot is configured for:
-
-- Python dependencies
-- npm dependencies
-- GitHub Actions
-
-Checks run weekly, with minor and patch updates grouped to reduce unnecessary update noise.
-
-Dependabot supports ongoing dependency maintenance and helps reduce exposure to outdated or vulnerable packages.
-
-## Build-Time Security Checks
-
-AWS CodeBuild installs and runs Bandit against the application before packaging the deployment artifact.
-
-The current build command uses:
-
-`bandit -r app -ll || true`
-
-This means findings are reported but do not currently fail the build.
-
-In a production implementation, I would define explicit blocking criteria based on factors such as:
-
-- Severity
-- Confidence
-- Application criticality
-- Exploitability
-- Compensating controls
-- Approved exception process
-
-Not every finding should necessarily block a release, but the decision should be intentional and policy-driven.
+Updates should still move through the repository's normal review and validation process before being merged.
 
 ## Deployment Validation
 
-AWS CodeDeploy lifecycle hooks are used to control application installation, startup, and validation.
-
-The implemented sequence is:
+AWS CodeDeploy lifecycle hooks define the deployment sequence:
 
 `BeforeInstall → AfterInstall → ApplicationStart → ValidateService`
 
-The `ValidateService` hook performs a local HTTP health check against the application on port 8080.
+The `ValidateService` hook performs a local HTTP health check against the service on port 8080.
 
-A failed validation causes the deployment validation step to fail.
+If the endpoint does not respond successfully, the validation script fails.
+
+This is intentionally a basic deployment check. For a production workload, successful process startup alone would not necessarily be sufficient to authorize traffic promotion.
+
+Additional validation could include:
+
+- Load balancer target health
+- Application error rates
+- Latency
+- Critical dependency availability
+- Application-specific functional checks
+- CloudWatch alarms
+- Security telemetry
+
+The appropriate checks would depend on what the application does and the business impact of an unsuccessful release.
 
 ## Branch and Promotion Controls
 
@@ -92,68 +63,65 @@ The repository uses protected-branch behavior for `main`, requiring changes to m
 This supports:
 
 - Review before merge
-- Required security checks
-- Traceability of changes
+- Change traceability
 - Controlled promotion
+- Separation between proposed and accepted changes
 
-Repository-level branch protection settings should remain aligned with the security and release policy.
-
-## Secrets Protection
-
-The implemented secret-control layer includes `detect-secrets` in the pre-commit workflow.
-
-For a production repository, I would also evaluate:
-
-- GitHub secret scanning
-- Push protection
-- Centralized secrets management
-- Short-lived credentials
-- Removal of long-lived static credentials from CI/CD
-- Rotation and incident procedures for exposed secrets
+In a production environment, branch protection and approval requirements should be aligned with application criticality and organizational change policy.
 
 ## CI/CD Identity
 
-The intended production design uses least-privilege CI/CD identities.
+A production implementation would use least-privilege identities for deployment automation.
 
-Where AWS access is required from GitHub Actions, I would prefer federation such as OIDC rather than long-lived AWS access keys.
+Where GitHub Actions requires access to AWS resources, I would prefer federated authentication such as OIDC rather than storing long-lived AWS access keys.
 
-Permissions should be scoped to the specific actions required by the workflow.
+Permissions should be limited to the resources and actions required by the deployment workflow.
+
+This identity architecture is a production design consideration and is not presented as an implemented control in this repository.
+
+## Blue/Green Security Considerations
+
+The blue/green pattern provides a useful security and operational boundary between the known-good production release and the candidate release.
+
+For this scenario, I would keep Blue available while Green is deployed and validated. Traffic would only be promoted after the required health and release criteria are satisfied.
+
+If Green fails validation or defined post-cutover thresholds, traffic should remain on or return to Blue.
+
+This does not eliminate deployment risk, but it provides a more controlled recovery path than modifying the production environment in place.
 
 ## Runtime Security Design
 
 The repository does not represent a fully deployed production runtime environment.
 
-A production implementation would evaluate controls such as:
+A production implementation would require evaluation of controls such as:
 
 - HTTPS-only access
 - TLS certificate management
-- Load balancer security controls
+- Load balancer security
 - WAF where justified by application risk
 - Security groups and network segmentation
-- Runtime logging
-- Centralized monitoring
-- CloudWatch alarms
 - IAM least privilege
 - Secrets management
+- Runtime logging and centralized monitoring
+- CloudWatch alarms
 - Patch and vulnerability management
 
 These controls should be selected based on the application's exposure, business criticality, regulatory requirements, and threat model.
 
 ## Auditability and Change Governance
 
-The architecture supports traceable delivery through:
+The implemented repository and deployment structure provides several sources of change evidence, including:
 
-- Pull requests
-- Code scanning results
+- Pull-request history
 - Dependency update history
-- Build logs
-- Deployment lifecycle events
-- Version-controlled infrastructure definitions
+- Version-controlled deployment scripts
+- CodeDeploy lifecycle events
+- Repository change history
 
 For production use, I would also define:
 
 - Approval requirements
-- Exception handling
+- Security and operational exception handling
 - Evidence retention
 - Change-management integration
 - Incident escalation
@@ -161,20 +129,20 @@ For production use, I would also define:
 
 ## Production Security Boundary
 
-This project demonstrates selected security and deployment controls, but it is not presented as a complete production security architecture.
+This project demonstrates selected security and deployment controls within a blue/green architecture prototype. It is not presented as a complete production security architecture.
 
 Before production adoption, I would validate:
 
 - Identity and access design
-- Network exposure
+- Network exposure and segmentation
 - Secrets handling
 - Logging and monitoring
 - Runtime protection
-- Security gate thresholds
+- Health and promotion criteria
 - Rollback conditions
-- Dependency and supply-chain controls
+- Supply-chain controls
 - Compliance requirements
 - Evidence and retention requirements
 - Incident response integration
 
-The goal is to apply controls according to business risk and release requirements rather than treating every available security control as mandatory.
+The specific controls and thresholds should be driven by the application's business function and risk rather than by applying every available security control by default.
