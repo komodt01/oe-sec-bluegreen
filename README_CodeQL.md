@@ -15,7 +15,6 @@ The architecture decision is the security capability, not the specific product. 
 
 Languages enabled in this repository:
 
-- Python
 - JavaScript
 
 Go was removed from the analysis matrix because the repository does not contain Go source code.
