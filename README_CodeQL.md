@@ -1,85 +1,48 @@
-CodeQL: Static Application Security Testing (SAST)
-Why it’s here (business → outcomes)
+# CodeQL Static Application Security Testing (SAST)
 
-This repository uses GitHub CodeQL to automatically detect security and quality issues in code. It supports two Well-Architected pillars:
+## Why It Is Here
 
-Security – early detection of vulnerable patterns (injection, deserialization, insecure randomness, etc.).
+This repository uses GitHub CodeQL to identify potentially vulnerable coding patterns before application changes are promoted.
 
-Operational Excellence – repeatable, automated reviews on every PR and a scheduled full scan to keep debt visible.
+For this project, CodeQL supports two primary objectives:
 
-Strategy first; tools second. CodeQL is used here because GitHub recommends it for code scanning in GitHub-hosted projects. In any client/enterprise setting the tool choice would follow business goals, platform, and policy.
+- **Security** — identify vulnerable or unsafe coding patterns earlier in the delivery lifecycle.
+- **Operational Excellence** — make security analysis repeatable through automated pull-request, main-branch, and scheduled scanning.
 
-What it scans
-Languages enabled in this repo: Python and JavaScript.
-(Go was removed from the matrix because there’s no Go source in this repo.)
+The architecture decision is the security capability, not the specific product. CodeQL was selected because this project uses GitHub and integrates directly with the repository workflow. In an enterprise environment, the SAST platform would be selected based on application languages, development platform, security requirements, integration needs, cost, and organizational standards.
 
-Query packs: the default security + quality packs maintained by GitHub.
+## What It Scans
 
-How it runs
-The workflow lives at: .github/workflows/codeql.yml.
+Languages enabled in this repository:
 
-It triggers on:
-Push to main
-Pull requests into main (shifts left: comments on the PR)
-Weekly schedule (cron) for drift and new query coverage
+- Python
+- JavaScript
 
-Minimal permissions:
+Go was removed from the analysis matrix because the repository does not contain Go source code.
+
+The workflow uses GitHub-maintained CodeQL queries for security analysis.
+
+## How It Runs
+
+The workflow is located at:
+
+`.github/workflows/codeql.yml`
+
+CodeQL runs on:
+
+- Pushes to `main`
+- Pull requests into `main`
+- A weekly scheduled scan
+
+Pull-request scanning provides security feedback before changes are merged.
+
+The scheduled scan allows the repository to be re-evaluated as CodeQL analysis and query coverage evolve, even when application code has not recently changed.
+
+## Workflow Permissions
+
+The workflow uses:
+
+```yaml
 permissions:
   contents: read
   security-events: write
-
-Build step:
-- uses: github/codeql-action/autobuild@v3
-
-Where results appear
-Security → Code scanning alerts (repository tab)
-Pull request checks (inline annotations on changed lines)
-SARIF is uploaded to GitHub’s security events and retained with the run
-
-Triage workflow (lightweight)
-Open Security → Code scanning alerts.
-For each alert:
-Confirm: real issue vs. FP (false positive).
-Decide:
-Fix now (link shows the exact location and query docs).
-Dismiss with a reason (won’t fix / used in tests / acceptable risk).
-Track: convert to issue if fix spans multiple PRs.
-Tie fixes to a PR and reference the alert. The check will re-run and close the alert automatically when the pattern disappears.
-Customizing
-
-Languages: edit the matrix in the workflow:
-matrix:
-  language: ['python', 'javascript']
-
-  Queries: add packs or custom queries:
-  - uses: github/codeql-action/init@v3
-  with:
-    languages: ${{ matrix.language }}
-    queries: security-extended,security-and-quality
-
-Monorepo: scope analysis with paths / paths-ignore in the workflow trigger or with CodeQL packs config.
-
-Troubleshooting (common)
-“No source code seen during build (Go/Python/JS)”
-The matrix includes a language without files. Remove it or add source.
-(We already removed go in this repo.)
-
-Autobuild fails
-Replace autobuild with explicit build commands for your stack.
-
-No alerts but you expect some
-Ensure code is actually analyzed (check the job summary), and that queries are not limited to a minimal set. Try security-extended.
-
-Complementary controls
-Dependabot: automated PRs for vulnerable/outdated dependencies (enabled in this repo).
-Secret scanning: enable repository-level secret scanning and push protection if available.
-Branch protection: require CodeQL and tests to pass before merge.
-
-Governance notes
-Keep CodeQL action versions pinned to the latest major (@v3).
-Scheduled runs help capture new query detections without code changes.
-Treat dismissals as risk decisions; always record a reason
-
-Change log
-Initial setup: CodeQL enabled for Python and JavaScript, weekly schedule.
-Removed Go analyzer (no Go source present).
