@@ -2,21 +2,24 @@
 
 ## Project Overview
 
-This project explores how security controls can be integrated into a blue/green application deployment process without making security a separate activity at the end of delivery.
+This project explores how security and operational controls can be incorporated into a blue/green deployment process rather than treated as separate activities at the end of delivery.
 
-The implemented portion focuses on the security and deployment lifecycle: pre-commit checks, static application security testing, dependency maintenance, build-time scanning, AWS CodeDeploy lifecycle hooks, and application health validation.
+The implemented portion focuses on deployment lifecycle controls, secrets detection, dependency maintenance, AWS CodeDeploy lifecycle hooks, and service health validation.
 
-The repository also includes a CDK scaffold for an AWS blue/green architecture using separate deployment capacity, load balancing, traffic switching, monitoring, and rollback. The full ALB/Auto Scaling Group blue/green runtime infrastructure was not deployed as part of this project.
+The repository also includes an AWS CDK scaffold representing a broader blue/green architecture using separate deployment capacity, load balancing, controlled traffic promotion, monitoring, and rollback.
+
+The full ALB, Auto Scaling Group, target group, traffic-switching, and automated rollback infrastructure was not deployed as part of this project.
 
 ## Project Scope
 
 ### Implemented
 
-- GitHub CodeQL analysis for Python and JavaScript
-- CodeQL execution on pull requests, pushes to `main`, and a weekly schedule
+- Pre-commit secrets detection using `detect-secrets`
+- Dependabot configuration for dependency and GitHub Actions maintenance
 - AWS CodeDeploy lifecycle hooks
-- Application start and local health validation
-- Application artifact packaging
+- Application start and deployment validation scripts
+- Local HTTP health validation
+- Deployment documentation and blue/green architecture scaffold
 
 ### Architecture / Production Design
 
@@ -28,21 +31,21 @@ The production blue/green design extends the implemented deployment lifecycle wi
 - Controlled traffic promotion to Green
 - CloudWatch health and application alarms
 - Automated rollback when defined health criteria fail
-- Retention of the previous environment during the rollback window
+- Retention of the previous environment during a defined rollback window
 
 These components are represented as an architecture/CDK scaffold rather than a completed production deployment.
 
 ## Why Blue/Green?
 
-An in-place deployment changes the environment currently serving users. If the new release introduces an application defect, security issue, configuration problem, or performance regression, recovery can require repairing or redeploying the same environment.
+An in-place deployment changes the environment currently serving users. If a new release introduces an application defect, configuration problem, security issue, or performance regression, recovery may require repairing or redeploying that same environment.
 
 For this scenario, I used a blue/green pattern to separate the currently running version from the candidate release.
 
 The intended flow is:
 
 1. Blue continues serving production traffic.
-2. Green receives the candidate application version.
-3. Security and deployment checks validate the candidate.
+2. Green receives the candidate release.
+3. Deployment checks validate the candidate environment.
 4. The application is started and health-checked.
 5. In a production implementation, Green would be registered with a separate load balancer target group and validated before traffic promotion.
 6. Traffic would shift to Green only after the required checks pass.
@@ -50,48 +53,37 @@ The intended flow is:
 
 The objective is to reduce deployment risk while providing a faster and more controlled recovery path when a release fails.
 
-## Security Control Flow
+## Security and Deployment Control Flow
 
-The project applies controls at multiple stages rather than relying on a single security scan.
+The project applies controls at different points in the delivery process rather than relying on a single deployment check.
 
-**Developer Workstation**
+### Developer Workstation
 
-Pre-commit controls provide early feedback:
+The pre-commit configuration uses `detect-secrets` to identify potential credential or secret exposure before changes are committed.
 
-- Bandit for Python security checks
-- detect-secrets for potential credential or secret exposure
-- Ruff for linting
-- Black for formatting
+### Dependency Maintenance
 
-**Source Control / Pull Request**
+Dependabot is configured to check supported dependency ecosystems and GitHub Actions on a weekly schedule and create update pull requests according to the configured policy.
 
-GitHub CodeQL performs static application security testing for Python and JavaScript. Pull-request analysis allows security findings to be identified before code is merged.
+Dependency updates would still require review and validation before promotion into a production environment.
 
-**Dependency Maintenance**
+### Deployment
 
-Dependabot checks Python, npm, and GitHub Actions dependencies on a weekly schedule and creates update PRs according to the configured policy.
-
-**Build**
-
-AWS CodeBuild installs and runs Bandit against the application before packaging the application artifact.
-
-The current build configuration records Bandit findings without failing the build. In a production implementation, blocking thresholds would be defined according to vulnerability severity, confidence, application criticality, and the organization's exception process.
-
-**Deployment**
-
-AWS CodeDeploy lifecycle hooks control application installation and startup:
+AWS CodeDeploy lifecycle hooks define the deployment sequence:
 
 `BeforeInstall → AfterInstall → ApplicationStart → ValidateService`
 
-The `ValidateService` hook performs a local HTTP health check against the application on port 8080. A failed health check causes the validation script to fail.
+The `ValidateService` hook performs a local HTTP health check against the service on port 8080. If the endpoint does not respond successfully, the validation script fails.
+
+This provides a basic deployment control that can be expanded into broader promotion criteria in a production implementation.
 
 ## Health Validation
 
-The implemented health check confirms that the candidate application responds successfully after startup.
+The implemented health check verifies that the deployed service responds successfully after startup.
 
 This is intentionally a basic validation.
 
-For a production workload, I would evaluate additional checks such as:
+For a production workload, I would evaluate additional signals such as:
 
 - Load balancer target health
 - Critical application dependency availability
@@ -107,57 +99,53 @@ Traffic promotion should depend on the signals that demonstrate the application 
 
 The production architecture would retain Blue while Green is introduced and validated.
 
-If Green fails deployment validation, health checks, or defined operational alarms, traffic should remain on or return to Blue.
+If Green fails deployment validation, health checks, or defined operational thresholds, traffic should remain on or return to Blue.
 
-Rollback criteria and the amount of time Blue remains available would depend on the application's business criticality, recovery objectives, deployment frequency, infrastructure cost, and organizational change policy.
+The specific rollback criteria and the amount of time Blue remains available would depend on factors such as application criticality, recovery objectives, deployment frequency, infrastructure cost, and organizational change policy.
 
 ## Architecture Boundary
 
-This repository is an architecture prototype, not a complete production blue/green platform.
+This repository is an architecture prototype, not a completed production blue/green platform.
 
-It demonstrates the security automation and deployment lifecycle controls and documents how those controls fit into a broader AWS blue/green architecture.
+It demonstrates deployment lifecycle controls and documents how those controls would fit into a broader AWS blue/green architecture.
 
-A production implementation would still require detailed evaluation of networking, IAM, TLS, load balancing, monitoring, rollback thresholds, secrets management, data-tier compatibility, resilience requirements, and application-specific health criteria.
+The infrastructure scaffold represents the intended architecture but should not be interpreted as evidence that the complete runtime environment was deployed.
+
+A production implementation would require additional evaluation of:
+
+- Networking and segmentation
+- IAM and deployment identities
+- TLS and certificate management
+- Load balancing and target-group configuration
+- Monitoring and observability
+- Promotion and rollback thresholds
+- Secrets management
+- Data-tier and schema compatibility
+- Resilience and recovery requirements
+- Application-specific health criteria
 
 ## Key Technologies
 
-- GitHub Actions
-- GitHub CodeQL
-- Dependabot
-- Bandit
+- GitHub
+- GitHub Dependabot
 - detect-secrets
-- Ruff
-- Black
-- AWS CodeBuild
 - AWS CodeDeploy
 - AWS CDK
 - Bash
-- Python / JavaScript security analysis
 
 ## Repository Structure
 
-- `.github/workflows/` — CodeQL and CI/security automation
 - `app/scripts/` — CodeDeploy lifecycle and health-check scripts
-- `iac/cdk/bluegreen/` — blue/green infrastructure scaffold
-- `.pre-commit-config.yaml` — local security and quality controls
+- `iac/cdk/bluegreen/` — blue/green infrastructure architecture scaffold
+- `.pre-commit-config.yaml` — local secrets detection
+- `dependabot.yml` — dependency maintenance configuration
 - `DEPLOYMENT.md` — deployment architecture and operational considerations
 - `SECURITY.md` — security controls and production security considerations
-- `README_CodeQL.md` — detailed CodeQL implementation notes
 
 ## Production Considerations
 
-This project intentionally stops short of representing the prototype as a production-ready platform.
+This project intentionally stops short of representing a complete production deployment.
 
-Before production adoption, I would work with application, platform, security, networking, and business stakeholders to define:
+Before implementing this architecture for a real workload, I would first establish the application's business criticality, availability requirements, recovery objectives, deployment frequency, security requirements, and acceptable rollback window.
 
-- Release and rollback criteria
-- Acceptable deployment risk
-- Required security gates
-- Availability and recovery objectives
-- Application health indicators
-- Approval and exception processes
-- Monitoring and incident escalation
-- Cost implications of maintaining parallel capacity
-- Database and schema compatibility during rollback
-
-The specific implementation should follow the application's business requirements rather than adopting blue/green deployment simply because the pattern is available.
+Those requirements would drive the final decisions around traffic-shifting strategy, health criteria, monitoring, rollback automation, infrastructure capacity, security controls, and operational ownership.
