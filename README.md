@@ -14,9 +14,6 @@ The repository also includes a CDK scaffold for an AWS blue/green architecture u
 
 - GitHub CodeQL analysis for Python and JavaScript
 - CodeQL execution on pull requests, pushes to `main`, and a weekly schedule
-- Dependabot configuration for Python, npm, and GitHub Actions dependencies
-- Pre-commit security and quality checks using Bandit, detect-secrets, Ruff, and Black
-- Build-time Bandit scanning
 - AWS CodeDeploy lifecycle hooks
 - Application start and local health validation
 - Application artifact packaging
